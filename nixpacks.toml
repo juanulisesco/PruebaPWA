@@ -1,0 +1,9 @@
+[phases.setup]
+# Extensiones extra de PHP necesarias para web-push (VAPID) e íconos
+aptPkgs = ["php8.2-gmp", "php8.2-gd"]
+
+[phases.install]
+cmds = ["composer install --no-dev --no-interaction --optimize-autoloader"]
+
+[start]
+cmd = "php -S 0.0.0.0:$PORT router.php"

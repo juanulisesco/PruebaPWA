@@ -1,0 +1,12 @@
+{
+    "require": {
+        "php": ">=8.0",
+        "slim/slim": "^4.0",
+        "slim/psr7": "^1.0",
+        "minishlink/web-push": "^9.0"
+    },
+    "config": {
+        "process-timeout": 600,
+        "optimize-autoloader": true
+    }
+}

@@ -1,0 +1,8 @@
+vendor/
+storage/subscriptions.json
+icons/
+.dockerignore
+Dockerfile
+docker-compose.yml
+docker-entrypoint.sh
+setup.php
