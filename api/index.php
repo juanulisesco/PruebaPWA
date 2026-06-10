@@ -57,6 +57,28 @@ $app->options('/{routes:.+}', function (Request $request, Response $response) {
     return $response;
 });
 
+// GET /api/debug — diagnóstico del servidor
+$app->get('/debug', function (Request $request, Response $response) use ($config) {
+    $pubKey  = $config['vapid_public_key'];
+    $privKey = $config['vapid_private_key'];
+    $subject = $config['vapid_subject'];
+
+    $info = [
+        'php_version'      => PHP_VERSION,
+        'openssl_loaded'   => extension_loaded('openssl'),
+        'gmp_loaded'       => extension_loaded('gmp'),
+        'pdo_mysql_loaded' => extension_loaded('pdo_mysql'),
+        'mbstring_loaded'  => extension_loaded('mbstring'),
+        'vapid_subject'    => $subject,
+        'pub_key_length'   => strlen($pubKey),
+        'priv_key_length'  => strlen($privKey),
+        'pub_key_preview'  => substr($pubKey, 0, 10) . '...',
+    ];
+
+    $response->getBody()->write(json_encode($info, JSON_PRETTY_PRINT));
+    return $response->withHeader('Content-Type', 'application/json');
+});
+
 // GET /api/public-key
 $app->get('/public-key', function (Request $request, Response $response) use ($config) {
     $response->getBody()->write(json_encode(['publicKey' => $config['vapid_public_key']]));
