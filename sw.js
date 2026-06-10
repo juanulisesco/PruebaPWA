@@ -1,4 +1,4 @@
-const CACHE_NAME = 'push-pwa-v1';
+const CACHE_NAME = 'push-pwa-v3';
 const ASSETS = ['/index.html', '/style.css', '/app.js', '/manifest.json'];
 
 // Instalación: pre-cachear archivos estáticos

@@ -52,20 +52,27 @@ async function getVapidPublicKey() {
 async function setupPush() {
     const permission = await Notification.requestPermission();
 
-    if (permission !== 'granted') {
-        statusEl.textContent = 'Permiso de notificaciones denegado.';
-        return;
+    if (permission === 'denied') {
+        statusEl.textContent = 'Permiso denegado. Andá a Ajustes → [nombre de la app] → Notificaciones y activalo.';
+        return false;
     }
 
-    let subscription = await swRegistration.pushManager.getSubscription();
+    if (permission !== 'granted') {
+        statusEl.textContent = 'No se otorgó el permiso de notificaciones.';
+        return false;
+    }
 
-    if (!subscription) {
-        const vapidPublicKey = await getVapidPublicKey();
+    try {
+        let subscription = await swRegistration.pushManager.getSubscription();
 
-        subscription = await swRegistration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-        });
+        if (!subscription) {
+            const vapidPublicKey = await getVapidPublicKey();
+
+            subscription = await swRegistration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+            });
+        }
 
         const res = await fetch(`${API_URL}/subscribe`, {
             method: 'POST',
@@ -74,23 +81,28 @@ async function setupPush() {
         });
 
         if (!res.ok) {
-            statusEl.textContent = 'Error al registrar la suscripción.';
-            return;
+            statusEl.textContent = 'Error al registrar la suscripción en el servidor.';
+            return false;
         }
+    } catch (err) {
+        statusEl.textContent = `Error al suscribirse: ${err.message}`;
+        console.error(err);
+        return false;
     }
 
     statusEl.textContent = '¡Listo! Presioná el botón para enviar una notificación.';
     subscribeBtn.textContent = 'Suscripto ✓';
     subscribeBtn.disabled = true;
     notifyBtn.disabled = false;
+    return true;
 }
 
 subscribeBtn.addEventListener('click', async () => {
     subscribeBtn.disabled = true;
     subscribeBtn.textContent = 'Activando...';
     statusEl.textContent = '';
-    await setupPush();
-    if (subscribeBtn.textContent === 'Activando...') {
+    const ok = await setupPush();
+    if (!ok) {
         subscribeBtn.disabled = false;
         subscribeBtn.textContent = 'Activar notificaciones';
     }
