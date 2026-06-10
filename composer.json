@@ -1,6 +1,7 @@
 {
     "require": {
         "php": ">=8.0",
+        "ext-pdo_mysql": "*",
         "slim/slim": "^4.0",
         "slim/psr7": "^1.0",
         "minishlink/web-push": "^9.0"
