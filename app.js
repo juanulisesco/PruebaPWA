@@ -20,9 +20,14 @@ async function init() {
     try {
         swRegistration = await navigator.serviceWorker.register('/sw.js');
 
-        // Verificar si ya hay una suscripción activa sin pedir permisos
+        // Si ya hay una suscripción, re-registrarla en el servidor (por si la BD fue reseteada)
         const existing = await swRegistration.pushManager.getSubscription();
         if (existing) {
+            await fetch(`${API_URL}/subscribe`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(existing),
+            }).catch(() => {});
             statusEl.textContent = '¡Listo! Presioná el botón para enviar una notificación.';
             subscribeBtn.textContent = 'Suscripto ✓';
             subscribeBtn.disabled = true;
