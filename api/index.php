@@ -10,21 +10,34 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Minishlink\WebPush\WebPush;
 use Minishlink\WebPush\Subscription;
 
-$config      = require __DIR__ . '/../config.php';
-$storageFile = __DIR__ . '/../storage/subscriptions.json';
+$config = require __DIR__ . '/../config.php';
 
-// Crear directorio de storage si no existe
-$storageDir = dirname($storageFile);
-if (!is_dir($storageDir)) {
-    mkdir($storageDir, 0755, true);
-}
+// Conexión PDO a MySQL
+$dsn = sprintf(
+    'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
+    $config['db_host'],
+    $config['db_port'],
+    $config['db_name']
+);
+$pdo = new PDO($dsn, $config['db_user'], $config['db_password'], [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+]);
+
+// Crear tabla si no existe
+$pdo->exec("
+    CREATE TABLE IF NOT EXISTS subscriptions (
+        id       INT AUTO_INCREMENT PRIMARY KEY,
+        endpoint TEXT NOT NULL,
+        data     JSON NOT NULL,
+        UNIQUE KEY uq_endpoint (endpoint(500))
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+");
 
 $app = AppFactory::create();
 
-// Base path fijo para el router de Railway (PHP built-in server + router.php)
 $app->setBasePath('/api');
 
-// Middleware CORS (necesario si el frontend se sirve desde otro origen en desarrollo)
 $app->add(function (Request $request, $handler) {
     $response = $handler->handle($request);
     return $response
@@ -33,19 +46,18 @@ $app->add(function (Request $request, $handler) {
         ->withHeader('Access-Control-Allow-Headers', 'Content-Type');
 });
 
-// Responder preflight OPTIONS
 $app->options('/{routes:.+}', function (Request $request, Response $response) {
     return $response;
 });
 
-// GET /api/public-key — devuelve la clave VAPID pública al frontend
+// GET /api/public-key
 $app->get('/public-key', function (Request $request, Response $response) use ($config) {
     $response->getBody()->write(json_encode(['publicKey' => $config['vapid_public_key']]));
     return $response->withHeader('Content-Type', 'application/json');
 });
 
-// POST /api/subscribe — registra la suscripción push del dispositivo
-$app->post('/subscribe', function (Request $request, Response $response) use ($storageFile) {
+// POST /api/subscribe
+$app->post('/subscribe', function (Request $request, Response $response) use ($pdo) {
     $data = json_decode((string) $request->getBody(), true);
 
     if (empty($data['endpoint'])) {
@@ -53,28 +65,25 @@ $app->post('/subscribe', function (Request $request, Response $response) use ($s
         return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
     }
 
-    $subscriptions = file_exists($storageFile)
-        ? (json_decode(file_get_contents($storageFile), true) ?? [])
-        : [];
-
-    // Evitar duplicados por endpoint
-    $alreadyExists = array_filter($subscriptions, fn($s) => $s['endpoint'] === $data['endpoint']);
-    if (empty($alreadyExists)) {
-        $subscriptions[] = $data;
-        file_put_contents($storageFile, json_encode($subscriptions, JSON_PRETTY_PRINT));
-    }
+    $stmt = $pdo->prepare('
+        INSERT INTO subscriptions (endpoint, data)
+        VALUES (:endpoint, :data)
+        ON DUPLICATE KEY UPDATE data = VALUES(data)
+    ');
+    $stmt->execute([
+        ':endpoint' => $data['endpoint'],
+        ':data'     => json_encode($data),
+    ]);
 
     $response->getBody()->write(json_encode(['success' => true]));
     return $response->withHeader('Content-Type', 'application/json');
 });
 
-// POST /api/notify — envía una notificación push a todos los suscriptores
-$app->post('/notify', function (Request $request, Response $response) use ($config, $storageFile) {
-    $subscriptions = file_exists($storageFile)
-        ? (json_decode(file_get_contents($storageFile), true) ?? [])
-        : [];
+// POST /api/notify
+$app->post('/notify', function (Request $request, Response $response) use ($config, $pdo) {
+    $rows = $pdo->query('SELECT id, endpoint, data FROM subscriptions')->fetchAll();
 
-    if (empty($subscriptions)) {
+    if (empty($rows)) {
         $response->getBody()->write(json_encode(['error' => 'No hay suscriptores registrados']));
         return $response->withStatus(404)->withHeader('Content-Type', 'application/json');
     }
@@ -92,31 +101,34 @@ $app->post('/notify', function (Request $request, Response $response) use ($conf
         'body'  => 'Botón presionado. ¡Funciona!',
     ]);
 
-    foreach ($subscriptions as $sub) {
+    $indexById = [];
+    foreach ($rows as $row) {
+        $sub = json_decode($row['data'], true);
         $webPush->queueNotification(Subscription::create($sub), $payload);
+        $indexById[$row['endpoint']] = $row['id'];
     }
 
     $sent            = 0;
-    $failedEndpoints = [];
+    $failedIds       = [];
 
     foreach ($webPush->flush() as $report) {
         if ($report->isSuccess()) {
             $sent++;
         } else {
-            // Suscripción vencida o inválida — la removemos
-            $failedEndpoints[] = $report->getEndpoint();
+            $ep = $report->getEndpoint();
+            if (isset($indexById[$ep])) {
+                $failedIds[] = $indexById[$ep];
+            }
         }
     }
 
-    // Limpiar suscripciones fallidas del storage
-    if (!empty($failedEndpoints)) {
-        $subscriptions = array_values(
-            array_filter($subscriptions, fn($s) => !in_array($s['endpoint'], $failedEndpoints, true))
-        );
-        file_put_contents($storageFile, json_encode($subscriptions, JSON_PRETTY_PRINT));
+    // Eliminar suscripciones vencidas o inválidas
+    if (!empty($failedIds)) {
+        $placeholders = implode(',', array_fill(0, count($failedIds), '?'));
+        $pdo->prepare("DELETE FROM subscriptions WHERE id IN ($placeholders)")->execute($failedIds);
     }
 
-    $response->getBody()->write(json_encode(['sent' => $sent, 'failed' => count($failedEndpoints)]));
+    $response->getBody()->write(json_encode(['sent' => $sent, 'failed' => count($failedIds)]));
     return $response->withHeader('Content-Type', 'application/json');
 });
 
