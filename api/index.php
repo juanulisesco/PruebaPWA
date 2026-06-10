@@ -70,6 +70,7 @@ $app->get('/debug', function (Request $request, Response $response) use ($config
         'pdo_mysql_loaded' => extension_loaded('pdo_mysql'),
         'mbstring_loaded'  => extension_loaded('mbstring'),
         'vapid_subject'    => $subject,
+        'subject_valid'    => str_starts_with($subject, 'mailto:') || str_starts_with($subject, 'https:'),
         'pub_key_length'   => strlen($pubKey),
         'priv_key_length'  => strlen($privKey),
         'pub_key_preview'  => substr($pubKey, 0, 10) . '...',
