@@ -1,6 +1,6 @@
 {
     "require": {
-        "php": ">=8.0",
+        "php": "^8.2",
         "ext-gmp": "*",
         "ext-mbstring": "*",
         "ext-pdo_mysql": "*",
