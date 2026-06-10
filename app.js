@@ -18,8 +18,16 @@ async function init() {
 
     try {
         swRegistration = await navigator.serviceWorker.register('/sw.js');
-        statusEl.textContent = 'Registrando suscripción...';
-        await setupPush();
+
+        // Verificar si ya hay una suscripción activa sin pedir permisos
+        const existing = await swRegistration.pushManager.getSubscription();
+        if (existing) {
+            statusEl.textContent = '¡Listo! Presioná el botón para recibir una notificación.';
+            notifyBtn.disabled = false;
+        } else {
+            statusEl.textContent = 'Presioná el botón para activar las notificaciones.';
+            notifyBtn.disabled = false;
+        }
     } catch (err) {
         statusEl.textContent = 'Error al registrar el Service Worker.';
         console.error(err);
@@ -69,8 +77,21 @@ async function setupPush() {
 
 notifyBtn.addEventListener('click', async () => {
     notifyBtn.disabled = true;
-    notifyBtn.textContent = 'Enviando...';
     statusEl.textContent = '';
+
+    // Si no hay suscripción, primero pedir permiso y suscribir (requiere gesto del usuario)
+    if (swRegistration) {
+        const existing = await swRegistration.pushManager.getSubscription();
+        if (!existing) {
+            notifyBtn.textContent = 'Activando...';
+            await setupPush();
+            notifyBtn.disabled = false;
+            notifyBtn.textContent = 'Enviar notificación';
+            return;
+        }
+    }
+
+    notifyBtn.textContent = 'Enviando...';
 
     try {
         const res = await fetch(`${API_URL}/notify`, { method: 'POST' });
