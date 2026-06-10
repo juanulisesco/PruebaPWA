@@ -43,11 +43,17 @@ self.addEventListener('push', (event) => {
         // Si el payload no es JSON válido, usar valores por defecto
     }
 
+    // iOS requiere que se llame a showNotification *dentro* de event.waitUntil
+    // y necesita que la promesa no se resuelva antes de mostrar la notificación.
+    const options = {
+        body: body,
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        data: { url: '/' },
+    };
+
     event.waitUntil(
-        self.registration.showNotification(title, {
-            body: body,
-            icon: '/icons/icon-192.png',
-        })
+        self.registration.showNotification(title, options)
     );
 });
 

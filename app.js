@@ -7,13 +7,33 @@ const notifyBtn    = document.getElementById('notify-btn');
 
 let swRegistration = null;
 
+// Detecta si el usuario está en iOS
+function isIOS() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// Detecta si la PWA está instalada (añadida a la pantalla de inicio)
+function isInstalledPWA() {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+}
+
 async function init() {
     if (!('serviceWorker' in navigator)) {
         statusEl.textContent = 'Service Workers no soportados en este navegador.';
         return;
     }
     if (!('PushManager' in window)) {
-        statusEl.textContent = 'Push API no soportada en este navegador.';
+        // En iOS, si no está instalada como PWA, PushManager no existe
+        if (isIOS() && !isInstalledPWA()) {
+            statusEl.innerHTML =
+                '📱 <strong>iPhone:</strong> Para recibir notificaciones push tenés que ' +
+                'primero <strong>agregar esta app a la pantalla de inicio</strong>: ' +
+                'tocá el botón Compartir (⎙) → "Agregar a pantalla de inicio".';
+        } else {
+            statusEl.textContent = 'Push API no soportada en este navegador.';
+        }
         return;
     }
 
