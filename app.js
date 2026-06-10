@@ -1,8 +1,9 @@
 // Si la app está en una subcarpeta, ajustá esta ruta. Ej: '/mypwa/api'
 const API_URL = '/api';
 
-const statusEl  = document.getElementById('status');
-const notifyBtn = document.getElementById('notify-btn');
+const statusEl     = document.getElementById('status');
+const subscribeBtn = document.getElementById('subscribe-btn');
+const notifyBtn    = document.getElementById('notify-btn');
 
 let swRegistration = null;
 
@@ -22,11 +23,13 @@ async function init() {
         // Verificar si ya hay una suscripción activa sin pedir permisos
         const existing = await swRegistration.pushManager.getSubscription();
         if (existing) {
-            statusEl.textContent = '¡Listo! Presioná el botón para recibir una notificación.';
+            statusEl.textContent = '¡Listo! Presioná el botón para enviar una notificación.';
+            subscribeBtn.textContent = 'Suscripto ✓';
+            subscribeBtn.disabled = true;
             notifyBtn.disabled = false;
         } else {
-            statusEl.textContent = 'Presioná el botón para activar las notificaciones.';
-            notifyBtn.disabled = false;
+            statusEl.textContent = 'Primero activá las notificaciones.';
+            subscribeBtn.disabled = false;
         }
     } catch (err) {
         statusEl.textContent = 'Error al registrar el Service Worker.';
@@ -71,27 +74,27 @@ async function setupPush() {
         }
     }
 
-    statusEl.textContent = '¡Listo! Presioná el botón para recibir una notificación.';
+    statusEl.textContent = '¡Listo! Presioná el botón para enviar una notificación.';
+    subscribeBtn.textContent = 'Suscripto ✓';
+    subscribeBtn.disabled = true;
     notifyBtn.disabled = false;
 }
 
+subscribeBtn.addEventListener('click', async () => {
+    subscribeBtn.disabled = true;
+    subscribeBtn.textContent = 'Activando...';
+    statusEl.textContent = '';
+    await setupPush();
+    if (subscribeBtn.textContent === 'Activando...') {
+        subscribeBtn.disabled = false;
+        subscribeBtn.textContent = 'Activar notificaciones';
+    }
+});
+
 notifyBtn.addEventListener('click', async () => {
     notifyBtn.disabled = true;
-    statusEl.textContent = '';
-
-    // Si no hay suscripción, primero pedir permiso y suscribir (requiere gesto del usuario)
-    if (swRegistration) {
-        const existing = await swRegistration.pushManager.getSubscription();
-        if (!existing) {
-            notifyBtn.textContent = 'Activando...';
-            await setupPush();
-            notifyBtn.disabled = false;
-            notifyBtn.textContent = 'Enviar notificación';
-            return;
-        }
-    }
-
     notifyBtn.textContent = 'Enviando...';
+    statusEl.textContent = '';
 
     try {
         const res = await fetch(`${API_URL}/notify`, { method: 'POST' });
