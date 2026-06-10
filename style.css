@@ -36,9 +36,8 @@ h1 {
     min-height: 1.4em;
 }
 
+#subscribe-btn,
 #notify-btn {
-    background: #4a90d9;
-    color: white;
     border: none;
     border-radius: 8px;
     padding: 14px 32px;
@@ -46,6 +45,30 @@ h1 {
     cursor: pointer;
     transition: background 0.2s, transform 0.1s;
     width: 100%;
+    color: white;
+}
+
+#subscribe-btn {
+    background: #38a169;
+    margin-bottom: 12px;
+}
+
+#subscribe-btn:hover:not(:disabled) {
+    background: #2f855a;
+    transform: translateY(-1px);
+}
+
+#subscribe-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+#subscribe-btn:disabled {
+    background: #a0aec0;
+    cursor: not-allowed;
+}
+
+#notify-btn {
+    background: #4a90d9;
 }
 
 #notify-btn:hover:not(:disabled) {
