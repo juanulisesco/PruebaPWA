@@ -1,4 +1,4 @@
-const CACHE_NAME = 'push-pwa-v3';
+const CACHE_NAME = 'push-pwa-v4';
 const ASSETS = ['/index.html', '/style.css', '/app.js', '/manifest.json'];
 
 // Instalación: pre-cachear archivos estáticos
@@ -30,15 +30,23 @@ self.addEventListener('fetch', (event) => {
 
 // Push: mostrar la notificación al recibir el evento
 self.addEventListener('push', (event) => {
-    const data = event.data
-        ? event.data.json()
-        : { title: 'Push PWA', body: '¡Nueva notificación!' };
+    let title = 'Push PWA';
+    let body  = '¡Nueva notificación!';
+
+    try {
+        if (event.data) {
+            const data = event.data.json();
+            title = data.title || title;
+            body  = data.body  || body;
+        }
+    } catch (e) {
+        // Si el payload no es JSON válido, usar valores por defecto
+    }
 
     event.waitUntil(
-        self.registration.showNotification(data.title, {
-            body: data.body,
+        self.registration.showNotification(title, {
+            body: body,
             icon: '/icons/icon-192.png',
-            badge: '/icons/icon-192.png',
         })
     );
 });
