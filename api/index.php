@@ -115,27 +115,33 @@ $app->post('/notify', function (Request $request, Response $response) use ($conf
         $indexById[$row['endpoint']] = $row['id'];
     }
 
-    $sent            = 0;
-    $failedIds       = [];
+    $sent      = 0;
+    $failed    = 0;
+    $expiredIds = [];
 
     foreach ($webPush->flush() as $report) {
         if ($report->isSuccess()) {
             $sent++;
         } else {
-            $ep = $report->getEndpoint();
-            if (isset($indexById[$ep])) {
-                $failedIds[] = $indexById[$ep];
+            $failed++;
+            // Solo borrar si la suscripción expiró o es inválida (410 Gone / 404 Not Found)
+            $statusCode = $report->getResponse() ? $report->getResponse()->getStatusCode() : 0;
+            if (in_array($statusCode, [404, 410], true)) {
+                $ep = $report->getEndpoint();
+                if (isset($indexById[$ep])) {
+                    $expiredIds[] = $indexById[$ep];
+                }
             }
         }
     }
 
-    // Eliminar suscripciones vencidas o inválidas
-    if (!empty($failedIds)) {
-        $placeholders = implode(',', array_fill(0, count($failedIds), '?'));
-        $pdo->prepare("DELETE FROM subscriptions WHERE id IN ($placeholders)")->execute($failedIds);
+    // Eliminar solo suscripciones confirmadas como expiradas
+    if (!empty($expiredIds)) {
+        $placeholders = implode(',', array_fill(0, count($expiredIds), '?'));
+        $pdo->prepare("DELETE FROM subscriptions WHERE id IN ($placeholders)")->execute($expiredIds);
     }
 
-    $response->getBody()->write(json_encode(['sent' => $sent, 'failed' => count($failedIds)]));
+    $response->getBody()->write(json_encode(['sent' => $sent, 'failed' => $failed]));
     return $response->withHeader('Content-Type', 'application/json');
 });
 
