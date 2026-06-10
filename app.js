@@ -125,7 +125,8 @@ notifyBtn.addEventListener('click', async () => {
         }
 
         if (res.ok) {
-            statusEl.textContent = `Notificación enviada (${data.sent} dispositivo/s).`;
+            const detail = data.details ? data.details.join(' | ') : '';
+            statusEl.textContent = `Enviada (${data.sent} ok, ${data.failed} fail) ${detail}`;
         } else {
             statusEl.textContent = data.error || 'Error al enviar la notificación.';
         }

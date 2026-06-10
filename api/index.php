@@ -115,33 +115,37 @@ $app->post('/notify', function (Request $request, Response $response) use ($conf
         $indexById[$row['endpoint']] = $row['id'];
     }
 
-    $sent      = 0;
-    $failed    = 0;
+    $sent       = 0;
+    $failed     = 0;
     $expiredIds = [];
+    $details    = [];
 
     foreach ($webPush->flush() as $report) {
+        $statusCode = $report->getResponse() ? $report->getResponse()->getStatusCode() : 0;
+        $endpoint   = $report->getEndpoint();
+        $isApple    = str_contains($endpoint, 'apple.com');
+
         if ($report->isSuccess()) {
             $sent++;
+            $details[] = ($isApple ? '[Apple]' : '[Other]') . " OK ({$statusCode})";
         } else {
             $failed++;
-            // Solo borrar si la suscripción expiró o es inválida (410 Gone / 404 Not Found)
-            $statusCode = $report->getResponse() ? $report->getResponse()->getStatusCode() : 0;
+            $reason  = $report->getReason();
+            $details[] = ($isApple ? '[Apple]' : '[Other]') . " FAIL ({$statusCode}): {$reason}";
             if (in_array($statusCode, [404, 410], true)) {
-                $ep = $report->getEndpoint();
-                if (isset($indexById[$ep])) {
-                    $expiredIds[] = $indexById[$ep];
+                if (isset($indexById[$endpoint])) {
+                    $expiredIds[] = $indexById[$endpoint];
                 }
             }
         }
     }
 
-    // Eliminar solo suscripciones confirmadas como expiradas
     if (!empty($expiredIds)) {
         $placeholders = implode(',', array_fill(0, count($expiredIds), '?'));
         $pdo->prepare("DELETE FROM subscriptions WHERE id IN ($placeholders)")->execute($expiredIds);
     }
 
-    $response->getBody()->write(json_encode(['sent' => $sent, 'failed' => $failed]));
+    $response->getBody()->write(json_encode(['sent' => $sent, 'failed' => $failed, 'details' => $details]));
     return $response->withHeader('Content-Type', 'application/json');
 });
 
