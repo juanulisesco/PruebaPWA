@@ -19,10 +19,17 @@ $dsn = sprintf(
     $config['db_port'],
     $config['db_name']
 );
-$pdo = new PDO($dsn, $config['db_user'], $config['db_password'], [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-]);
+try {
+    $pdo = new PDO($dsn, $config['db_user'], $config['db_password'], [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
+} catch (\Exception $e) {
+    header('Content-Type: application/json');
+    http_response_code(500);
+    echo json_encode(['error' => 'DB connection failed: ' . $e->getMessage()]);
+    exit;
+}
 
 // Crear tabla si no existe
 $pdo->exec("

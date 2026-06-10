@@ -6,4 +6,4 @@ aptPkgs = ["php8.2-gmp", "php8.2-gd", "php8.2-mysql"]
 cmds = ["composer install --no-dev --no-interaction --optimize-autoloader"]
 
 [start]
-cmd = "php -S 0.0.0.0:$PORT router.php"
+cmd = "php -d extension=pdo_mysql -S 0.0.0.0:$PORT router.php"

@@ -95,7 +95,14 @@ notifyBtn.addEventListener('click', async () => {
 
     try {
         const res = await fetch(`${API_URL}/notify`, { method: 'POST' });
-        const data = await res.json();
+        let data;
+        try {
+            data = await res.json();
+        } catch {
+            const text = await res.text().catch(() => '(sin respuesta)');
+            statusEl.textContent = `Error del servidor (${res.status}): ${text.substring(0, 150)}`;
+            return;
+        }
 
         if (res.ok) {
             statusEl.textContent = `Notificación enviada (${data.sent} dispositivo/s).`;
@@ -103,7 +110,7 @@ notifyBtn.addEventListener('click', async () => {
             statusEl.textContent = data.error || 'Error al enviar la notificación.';
         }
     } catch (err) {
-        statusEl.textContent = 'Error de red. Revisá la consola.';
+        statusEl.textContent = `Error de red: ${err.message}`;
         console.error(err);
     } finally {
         notifyBtn.disabled = false;
