@@ -1,9 +1,5 @@
-[phases.setup]
-# Extensiones PHP 8.2 necesarias para web-push (VAPID), GMP, MySQL e íconos
-aptPkgs = ["php8.2-gmp", "php8.2-gd", "php8.2-mysql", "php8.2-mbstring", "php8.2-curl"]
-
 [phases.install]
 cmds = ["composer install --no-dev --no-interaction --optimize-autoloader"]
 
 [start]
-cmd = "php -d extension=pdo_mysql -S 0.0.0.0:$PORT router.php"
+cmd = "php -S 0.0.0.0:$PORT router.php"

@@ -1,9 +1,11 @@
 {
     "require": {
         "php": "^8.2",
+        "ext-openssl": "*",
         "ext-gmp": "*",
         "ext-mbstring": "*",
         "ext-pdo_mysql": "*",
+        "ext-curl": "*",
         "slim/slim": "^4.0",
         "slim/psr7": "^1.0",
         "minishlink/web-push": "^9.0"
