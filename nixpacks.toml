@@ -1,6 +1,6 @@
 [phases.setup]
-# Extensiones extra de PHP necesarias para web-push (VAPID) e íconos
-aptPkgs = ["php8.2-gmp", "php8.2-gd"]
+# Extensiones extra de PHP necesarias para web-push (VAPID), íconos y MySQL
+aptPkgs = ["php8.2-gmp", "php8.2-gd", "php8.2-mysql"]
 
 [phases.install]
 cmds = ["composer install --no-dev --no-interaction --optimize-autoloader"]
