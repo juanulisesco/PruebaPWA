@@ -1,4 +1,4 @@
 [deploy]
-startCommand = "php8.2 -S 0.0.0.0:$PORT router.php"
+startCommand = "php -S 0.0.0.0:$PORT router.php"
 healthcheckPath = "/"
 healthcheckTimeout = 30
