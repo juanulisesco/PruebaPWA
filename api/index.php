@@ -31,15 +31,26 @@ try {
     exit;
 }
 
+// Grupos válidos
+define('VALID_GROUPS', ['rojo', 'azul', 'verde']);
+
 // Crear tabla si no existe
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS subscriptions (
-        id       INT AUTO_INCREMENT PRIMARY KEY,
-        endpoint TEXT NOT NULL,
-        data     JSON NOT NULL,
+        id         INT AUTO_INCREMENT PRIMARY KEY,
+        endpoint   TEXT NOT NULL,
+        data       JSON NOT NULL,
+        group_name VARCHAR(50) NOT NULL DEFAULT 'sin_grupo',
         UNIQUE KEY uq_endpoint (endpoint(500))
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ");
+
+// Agregar columna group_name si la tabla ya existía sin ella
+try {
+    $pdo->exec("ALTER TABLE subscriptions ADD COLUMN group_name VARCHAR(50) NOT NULL DEFAULT 'sin_grupo'");
+} catch (\Exception $e) {
+    // La columna ya existe, se ignora
+}
 
 $app = AppFactory::create();
 
@@ -88,21 +99,32 @@ $app->get('/public-key', function (Request $request, Response $response) use ($c
 
 // POST /api/subscribe
 $app->post('/subscribe', function (Request $request, Response $response) use ($pdo) {
-    $data = json_decode((string) $request->getBody(), true);
+    $data      = json_decode((string) $request->getBody(), true);
+    $groupName = $data['groupName'] ?? '';
 
     if (empty($data['endpoint'])) {
         $response->getBody()->write(json_encode(['error' => 'Datos de suscripción inválidos']));
         return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
     }
 
+    if (!in_array($groupName, VALID_GROUPS, true)) {
+        $response->getBody()->write(json_encode(['error' => 'Grupo inválido. Grupos permitidos: ' . implode(', ', VALID_GROUPS)]));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    // Guardar sin el campo groupName en el JSON de la suscripción
+    $subData = $data;
+    unset($subData['groupName']);
+
     $stmt = $pdo->prepare('
-        INSERT INTO subscriptions (endpoint, data)
-        VALUES (:endpoint, :data)
-        ON DUPLICATE KEY UPDATE data = VALUES(data)
+        INSERT INTO subscriptions (endpoint, data, group_name)
+        VALUES (:endpoint, :data, :group_name)
+        ON DUPLICATE KEY UPDATE data = VALUES(data), group_name = VALUES(group_name)
     ');
     $stmt->execute([
-        ':endpoint' => $data['endpoint'],
-        ':data'     => json_encode($data),
+        ':endpoint'   => $data['endpoint'],
+        ':data'       => json_encode($subData),
+        ':group_name' => $groupName,
     ]);
 
     $response->getBody()->write(json_encode(['success' => true]));
@@ -113,8 +135,16 @@ $app->post('/subscribe', function (Request $request, Response $response) use ($p
 $app->post('/notify', function (Request $request, Response $response) use ($config, $pdo) {
     $body           = json_decode((string) $request->getBody(), true);
     $senderEndpoint = $body['senderEndpoint'] ?? null;
+    $groupName      = $body['groupName'] ?? '';
 
-    $rows = $pdo->query('SELECT id, endpoint, data FROM subscriptions')->fetchAll();
+    if (!in_array($groupName, VALID_GROUPS, true)) {
+        $response->getBody()->write(json_encode(['error' => 'Grupo inválido. Grupos permitidos: ' . implode(', ', VALID_GROUPS)]));
+        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    $stmt = $pdo->prepare('SELECT id, endpoint, data FROM subscriptions WHERE group_name = ?');
+    $stmt->execute([$groupName]);
+    $rows = $stmt->fetchAll();
 
     // Excluir al dispositivo que originó la notificación
     if ($senderEndpoint) {

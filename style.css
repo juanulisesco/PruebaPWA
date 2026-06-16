@@ -84,3 +84,33 @@ h1 {
     background: #a0aec0;
     cursor: not-allowed;
 }
+
+.section {
+    margin-bottom: 24px;
+}
+
+.section label {
+    display: block;
+    font-size: 0.85rem;
+    color: #4a5568;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.section select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background: #f7fafc;
+    color: #2d3748;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+
+.section select:disabled {
+    background: #edf2f7;
+    color: #a0aec0;
+    cursor: not-allowed;
+}

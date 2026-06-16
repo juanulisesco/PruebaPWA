@@ -1,9 +1,11 @@
 // Si la app está en una subcarpeta, ajustá esta ruta. Ej: '/mypwa/api'
 const API_URL = '/api';
 
-const statusEl     = document.getElementById('status');
-const subscribeBtn = document.getElementById('subscribe-btn');
-const notifyBtn    = document.getElementById('notify-btn');
+const statusEl         = document.getElementById('status');
+const subscribeBtn     = document.getElementById('subscribe-btn');
+const notifyBtn        = document.getElementById('notify-btn');
+const subscribeGroupEl = document.getElementById('subscribe-group');
+const notifyGroupEl    = document.getElementById('notify-group');
 
 let swRegistration = null;
 
@@ -25,7 +27,6 @@ async function init() {
         return;
     }
     if (!('PushManager' in window)) {
-        // En iOS, si no está instalada como PWA, PushManager no existe
         if (isIOS() && !isInstalledPWA()) {
             statusEl.innerHTML =
                 '📱 <strong>iPhone:</strong> Para recibir notificaciones push tenés que ' +
@@ -39,23 +40,11 @@ async function init() {
 
     try {
         swRegistration = await navigator.serviceWorker.register('/sw.js');
-
-        // Si ya hay una suscripción, re-registrarla en el servidor (por si la BD fue reseteada)
-        const existing = await swRegistration.pushManager.getSubscription();
-        if (existing) {
-            await fetch(`${API_URL}/subscribe`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(existing),
-            }).catch(() => {});
-            statusEl.textContent = '¡Listo! Presioná el botón para enviar una notificación.';
-            subscribeBtn.textContent = 'Suscripto ✓';
-            subscribeBtn.disabled = true;
-            notifyBtn.disabled = false;
-        } else {
-            statusEl.textContent = 'Primero activá las notificaciones.';
-            subscribeBtn.disabled = false;
-        }
+        statusEl.textContent = 'Elegí tu grupo y activá las notificaciones.';
+        subscribeGroupEl.disabled = false;
+        subscribeBtn.disabled = false;
+        notifyGroupEl.disabled = false;
+        notifyBtn.disabled = false;
     } catch (err) {
         statusEl.textContent = 'Error al registrar el Service Worker.';
         console.error(err);
@@ -69,7 +58,7 @@ async function getVapidPublicKey() {
     return data.publicKey;
 }
 
-async function setupPush() {
+async function setupPush(groupName) {
     const permission = await Notification.requestPermission();
 
     if (permission === 'denied') {
@@ -87,17 +76,17 @@ async function setupPush() {
 
         if (!subscription) {
             const vapidPublicKey = await getVapidPublicKey();
-
             subscription = await swRegistration.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
             });
         }
 
+        const subData = JSON.parse(JSON.stringify(subscription));
         const res = await fetch(`${API_URL}/subscribe`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(subscription),
+            body: JSON.stringify({ ...subData, groupName }),
         });
 
         if (!res.ok) {
@@ -110,25 +99,24 @@ async function setupPush() {
         return false;
     }
 
-    statusEl.textContent = '¡Listo! Presioná el botón para enviar una notificación.';
-    subscribeBtn.textContent = 'Suscripto ✓';
-    subscribeBtn.disabled = true;
-    notifyBtn.disabled = false;
+    const label = { rojo: '🔴 Rojo', azul: '🔵 Azul', verde: '🟢 Verde' }[groupName] ?? groupName;
+    statusEl.textContent = `✓ Suscripto al grupo ${label}.`;
     return true;
 }
 
 subscribeBtn.addEventListener('click', async () => {
+    const groupName = subscribeGroupEl.value;
     subscribeBtn.disabled = true;
     subscribeBtn.textContent = 'Activando...';
     statusEl.textContent = '';
-    const ok = await setupPush();
-    if (!ok) {
-        subscribeBtn.disabled = false;
-        subscribeBtn.textContent = 'Activar notificaciones';
-    }
+    const ok = await setupPush(groupName);
+    subscribeBtn.disabled = false;
+    subscribeBtn.textContent = 'Activar notificaciones';
+    if (!ok && !statusEl.textContent) statusEl.textContent = 'No se pudo suscribir.';
 });
 
 notifyBtn.addEventListener('click', async () => {
+    const groupName = notifyGroupEl.value;
     notifyBtn.disabled = true;
     notifyBtn.textContent = 'Enviando...';
     statusEl.textContent = '';
@@ -138,7 +126,10 @@ notifyBtn.addEventListener('click', async () => {
         const res = await fetch(`${API_URL}/notify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ senderEndpoint: subscription ? subscription.endpoint : null }),
+            body: JSON.stringify({
+                groupName,
+                senderEndpoint: subscription ? subscription.endpoint : null,
+            }),
         });
         let data;
         try {
@@ -150,8 +141,9 @@ notifyBtn.addEventListener('click', async () => {
         }
 
         if (res.ok) {
+            const label = { rojo: '🔴 Rojo', azul: '🔵 Azul', verde: '🟢 Verde' }[groupName] ?? groupName;
             const detail = data.details ? data.details.join(' | ') : '';
-            statusEl.textContent = `Enviada (${data.sent} ok, ${data.failed} fail) ${detail}`;
+            statusEl.textContent = `Enviada al grupo ${label} (${data.sent} ok, ${data.failed} fail) ${detail}`;
         } else {
             statusEl.textContent = data.error || 'Error al enviar la notificación.';
         }

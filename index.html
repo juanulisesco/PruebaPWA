@@ -17,8 +17,26 @@
     <div class="container">
         <h1>Push PWA</h1>
         <p id="status">Cargando...</p>
-        <button id="subscribe-btn" disabled>Activar notificaciones</button>
-        <button id="notify-btn" disabled>Enviar notificación</button>
+
+        <div class="section">
+            <label for="subscribe-group">Unirme al grupo:</label>
+            <select id="subscribe-group" disabled>
+                <option value="rojo">🔴 Grupo Rojo</option>
+                <option value="azul">🔵 Grupo Azul</option>
+                <option value="verde">🟢 Grupo Verde</option>
+            </select>
+            <button id="subscribe-btn" disabled>Activar notificaciones</button>
+        </div>
+
+        <div class="section">
+            <label for="notify-group">Enviar al grupo:</label>
+            <select id="notify-group" disabled>
+                <option value="rojo">🔴 Grupo Rojo</option>
+                <option value="azul">🔵 Grupo Azul</option>
+                <option value="verde">🟢 Grupo Verde</option>
+            </select>
+            <button id="notify-btn" disabled>Enviar notificación</button>
+        </div>
     </div>
     <script src="/app.js"></script>
 </body>
