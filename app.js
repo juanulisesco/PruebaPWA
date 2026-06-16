@@ -76,7 +76,14 @@ async function setupPush(groupName) {
 
     try {
         const reg = await navigator.serviceWorker.ready;
-        let subscription = await reg.pushManager.getSubscription();
+
+        let subscription = null;
+        try {
+            subscription = await reg.pushManager.getSubscription();
+        } catch (_) {
+            // Estado inconsistente: se descarta y se crea una suscripción nueva
+            subscription = null;
+        }
 
         if (!subscription) {
             const vapidPublicKey = await getVapidPublicKey();
