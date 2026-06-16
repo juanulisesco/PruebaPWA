@@ -43,10 +43,22 @@ async function init() {
     try {
         await navigator.serviceWorker.register('/sw.js');
         swRegistration = await navigator.serviceWorker.ready;
-        statusEl.textContent = 'Elegí tu grupo y activá las notificaciones.';
         subscribeGroupEl.disabled = false;
         subscribeBtn.disabled = false;
         senderNameEl.disabled = false;
+
+        // Restaurar grupo guardado si la suscripción sigue activa
+        let existingSub = null;
+        try { existingSub = await swRegistration.pushManager.getSubscription(); } catch (_) {}
+        const savedGroup = localStorage.getItem('currentGroup');
+        if (existingSub && savedGroup) {
+            currentGroup = savedGroup;
+            const label = { rojo: '🔴 Rojo', azul: '🔵 Azul', verde: '🟢 Verde' }[savedGroup] ?? savedGroup;
+            statusEl.textContent = `✓ Suscripto al grupo ${label}.`;
+            notifyBtn.disabled = false;
+        } else {
+            statusEl.textContent = 'Elegí tu grupo y activá las notificaciones.';
+        }
     } catch (err) {
         statusEl.textContent = 'Error al registrar el Service Worker.';
         console.error(err);
@@ -79,18 +91,18 @@ async function setupPush(groupName) {
         let subscription = null;
         try {
             subscription = await reg.pushManager.getSubscription();
-        } catch (_) {
-            // Estado inconsistente: se descarta y se crea una suscripción nueva
-            subscription = null;
+        } catch (_) {}
+
+        // Desuscribir siempre antes de crear una nueva (evita estado inconsistente)
+        if (subscription) {
+            try { await subscription.unsubscribe(); } catch (_) {}
         }
 
-        if (!subscription) {
-            const vapidPublicKey = await getVapidPublicKey();
-            subscription = await reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-            });
-        }
+        const vapidPublicKey = await getVapidPublicKey();
+        subscription = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        });
 
         const subData = JSON.parse(JSON.stringify(subscription));
         const res = await fetch(`${API_URL}/subscribe`, {
@@ -110,6 +122,7 @@ async function setupPush(groupName) {
     }
 
     currentGroup = groupName;
+    localStorage.setItem('currentGroup', groupName);
     const label = { rojo: '🔴 Rojo', azul: '🔵 Azul', verde: '🟢 Verde' }[groupName] ?? groupName;
     statusEl.textContent = `✓ Suscripto al grupo ${label}.`;
     notifyBtn.disabled = false;
