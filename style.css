@@ -85,6 +85,34 @@ h1 {
     cursor: not-allowed;
 }
 
+#install-btn {
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 32px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    background: #805ad5;
+    color: white;
+}
+
+#install-btn:hover {
+    background: #6b46c1;
+    transform: translateY(-1px);
+}
+
+#install-btn:active {
+    transform: translateY(0);
+}
+
+.install-ios-msg {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: #4a5568;
+    line-height: 1.5;
+}
+
 .section {
     margin-bottom: 24px;
 }

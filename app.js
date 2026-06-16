@@ -7,9 +7,42 @@ const notifyBtn        = document.getElementById('notify-btn');
 const subscribeGroupEl = document.getElementById('subscribe-group');
 const senderNameEl     = document.getElementById('sender-name');
 
-let currentGroup = null;
+let currentGroup       = null;
+let deferredInstall    = null;
+let swRegistration     = null;
 
-let swRegistration = null;
+// Captura el evento de instalación (Android/Chrome)
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstall = e;
+    const section = document.getElementById('install-section');
+    const btn     = document.getElementById('install-btn');
+    if (section && btn) {
+        section.style.display = '';
+        btn.style.display     = '';
+    }
+});
+
+// Oculta el botón si el usuario ya instaló la app
+window.addEventListener('appinstalled', () => {
+    const section = document.getElementById('install-section');
+    if (section) section.style.display = 'none';
+    deferredInstall = null;
+});
+
+const installBtn = document.getElementById('install-btn');
+if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+        if (!deferredInstall) return;
+        deferredInstall.prompt();
+        const { outcome } = await deferredInstall.userChoice;
+        if (outcome === 'accepted') {
+            const section = document.getElementById('install-section');
+            if (section) section.style.display = 'none';
+        }
+        deferredInstall = null;
+    });
+}
 
 // Detecta si el usuario está en iOS
 function isIOS() {
@@ -30,10 +63,14 @@ async function init() {
     }
     if (!('PushManager' in window)) {
         if (isIOS() && !isInstalledPWA()) {
-            statusEl.innerHTML =
-                '📱 <strong>iPhone:</strong> Para recibir notificaciones push tenés que ' +
-                'primero <strong>agregar esta app a la pantalla de inicio</strong>: ' +
-                'tocá el botón Compartir (⎙) → "Agregar a pantalla de inicio".';
+            // Muestra instrucciones de instalación iOS
+            const section  = document.getElementById('install-section');
+            const iosMsg   = document.getElementById('install-ios');
+            const installB = document.getElementById('install-btn');
+            if (section) section.style.display = '';
+            if (iosMsg)  iosMsg.style.display   = '';
+            if (installB) installB.style.display = 'none';
+            statusEl.textContent = 'Instalá la app para recibir notificaciones.';
         } else {
             statusEl.textContent = 'Push API no soportada en este navegador.';
         }
