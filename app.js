@@ -134,7 +134,12 @@ notifyBtn.addEventListener('click', async () => {
     statusEl.textContent = '';
 
     try {
-        const res = await fetch(`${API_URL}/notify`, { method: 'POST' });
+        const subscription = await swRegistration.pushManager.getSubscription();
+        const res = await fetch(`${API_URL}/notify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ senderEndpoint: subscription ? subscription.endpoint : null }),
+        });
         let data;
         try {
             data = await res.json();

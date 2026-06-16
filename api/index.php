@@ -111,7 +111,15 @@ $app->post('/subscribe', function (Request $request, Response $response) use ($p
 
 // POST /api/notify
 $app->post('/notify', function (Request $request, Response $response) use ($config, $pdo) {
+    $body           = json_decode((string) $request->getBody(), true);
+    $senderEndpoint = $body['senderEndpoint'] ?? null;
+
     $rows = $pdo->query('SELECT id, endpoint, data FROM subscriptions')->fetchAll();
+
+    // Excluir al dispositivo que originó la notificación
+    if ($senderEndpoint) {
+        $rows = array_values(array_filter($rows, fn($r) => $r['endpoint'] !== $senderEndpoint));
+    }
 
     if (empty($rows)) {
         $response->getBody()->write(json_encode(['error' => 'No hay suscriptores registrados']));
