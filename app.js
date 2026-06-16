@@ -39,7 +39,8 @@ async function init() {
     }
 
     try {
-        swRegistration = await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.register('/sw.js');
+        swRegistration = await navigator.serviceWorker.ready;
         statusEl.textContent = 'Elegí tu grupo y activá las notificaciones.';
         subscribeGroupEl.disabled = false;
         subscribeBtn.disabled = false;
@@ -72,11 +73,12 @@ async function setupPush(groupName) {
     }
 
     try {
-        let subscription = await swRegistration.pushManager.getSubscription();
+        const reg = await navigator.serviceWorker.ready;
+        let subscription = await reg.pushManager.getSubscription();
 
         if (!subscription) {
             const vapidPublicKey = await getVapidPublicKey();
-            subscription = await swRegistration.pushManager.subscribe({
+            subscription = await reg.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
             });
