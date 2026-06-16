@@ -136,6 +136,8 @@ $app->post('/notify', function (Request $request, Response $response) use ($conf
     $body           = json_decode((string) $request->getBody(), true);
     $senderEndpoint = $body['senderEndpoint'] ?? null;
     $groupName      = $body['groupName'] ?? '';
+    $senderName     = trim($body['senderName'] ?? 'Alguien');
+    if ($senderName === '') $senderName = 'Alguien';
 
     if (!in_array($groupName, VALID_GROUPS, true)) {
         $response->getBody()->write(json_encode(['error' => 'Grupo inválido. Grupos permitidos: ' . implode(', ', VALID_GROUPS)]));
@@ -165,8 +167,8 @@ $app->post('/notify', function (Request $request, Response $response) use ($conf
     ]);
 
     $payload = json_encode([
-        'title' => '¡Notificación push!',
-        'body'  => 'Botón presionado. ¡Funciona!',
+        'title' => '¡Nuevo mensaje!',
+        'body'  => "{$senderName} envió una notificación al grupo {$groupName}.",
     ]);
 
     $indexById = [];

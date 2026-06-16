@@ -114,3 +114,26 @@ h1 {
     color: #a0aec0;
     cursor: not-allowed;
 }
+
+.section input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background: #f7fafc;
+    color: #2d3748;
+    margin-bottom: 0;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.section input[type="text"]:focus {
+    border-color: #4a90d9;
+}
+
+.section input[type="text"]:disabled {
+    background: #edf2f7;
+    color: #a0aec0;
+    cursor: not-allowed;
+}

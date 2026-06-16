@@ -6,6 +6,7 @@ const subscribeBtn     = document.getElementById('subscribe-btn');
 const notifyBtn        = document.getElementById('notify-btn');
 const subscribeGroupEl = document.getElementById('subscribe-group');
 const notifyGroupEl    = document.getElementById('notify-group');
+const senderNameEl     = document.getElementById('sender-name');
 
 let swRegistration = null;
 
@@ -44,6 +45,7 @@ async function init() {
         statusEl.textContent = 'Elegí tu grupo y activá las notificaciones.';
         subscribeGroupEl.disabled = false;
         subscribeBtn.disabled = false;
+        senderNameEl.disabled = false;
         notifyGroupEl.disabled = false;
         notifyBtn.disabled = false;
     } catch (err) {
@@ -125,11 +127,13 @@ notifyBtn.addEventListener('click', async () => {
 
     try {
         const subscription = await swRegistration.pushManager.getSubscription();
+        const senderName = senderNameEl.value.trim() || 'Alguien';
         const res = await fetch(`${API_URL}/notify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 groupName,
+                senderName,
                 senderEndpoint: subscription ? subscription.endpoint : null,
             }),
         });
