@@ -136,12 +136,26 @@ async function setupPush(groupName) {
         }
 
         const vapidPublicKey = await getVapidPublicKey();
-        subscription = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-        });
 
-        const subData = JSON.parse(JSON.stringify(subscription));
+        let freshReg = reg;
+        let newSubscription = null;
+        try {
+            newSubscription = await freshReg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+            });
+        } catch (_) {
+            // Estado interno corrupto: desregistrar el SW y volver a registrarlo
+            await freshReg.unregister();
+            await navigator.serviceWorker.register('/sw.js');
+            freshReg = await navigator.serviceWorker.ready;
+            newSubscription = await freshReg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+            });
+        }
+
+        const subData = JSON.parse(JSON.stringify(newSubscription));
         const res = await fetch(`${API_URL}/subscribe`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
