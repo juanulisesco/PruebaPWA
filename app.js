@@ -5,8 +5,9 @@ const statusEl         = document.getElementById('status');
 const subscribeBtn     = document.getElementById('subscribe-btn');
 const notifyBtn        = document.getElementById('notify-btn');
 const subscribeGroupEl = document.getElementById('subscribe-group');
-const notifyGroupEl    = document.getElementById('notify-group');
 const senderNameEl     = document.getElementById('sender-name');
+
+let currentGroup = null;
 
 let swRegistration = null;
 
@@ -46,8 +47,6 @@ async function init() {
         subscribeGroupEl.disabled = false;
         subscribeBtn.disabled = false;
         senderNameEl.disabled = false;
-        notifyGroupEl.disabled = false;
-        notifyBtn.disabled = false;
     } catch (err) {
         statusEl.textContent = 'Error al registrar el Service Worker.';
         console.error(err);
@@ -110,8 +109,10 @@ async function setupPush(groupName) {
         return false;
     }
 
+    currentGroup = groupName;
     const label = { rojo: '🔴 Rojo', azul: '🔵 Azul', verde: '🟢 Verde' }[groupName] ?? groupName;
     statusEl.textContent = `✓ Suscripto al grupo ${label}.`;
+    notifyBtn.disabled = false;
     return true;
 }
 
@@ -127,7 +128,11 @@ subscribeBtn.addEventListener('click', async () => {
 });
 
 notifyBtn.addEventListener('click', async () => {
-    const groupName = notifyGroupEl.value;
+    if (!currentGroup) {
+        statusEl.textContent = 'Primero suscribite a un grupo.';
+        return;
+    }
+    const groupName = currentGroup;
     notifyBtn.disabled = true;
     notifyBtn.textContent = 'Enviando...';
     statusEl.textContent = '';
