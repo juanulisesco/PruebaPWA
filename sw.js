@@ -49,6 +49,11 @@ self.addEventListener('push', (event) => {
         body: body,
         icon: '/icons/icon-192.png',
         badge: '/icons/icon-192.png',
+        vibrate: [200, 100, 200],
+        requireInteraction: false,
+        silent: false,
+        tag: 'push-pwa-notification',
+        renotify: true,
         data: { url: '/' },
     };
 
