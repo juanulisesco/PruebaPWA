@@ -2,7 +2,8 @@
 const API_URL = '/api';
 
 const statusEl         = document.getElementById('status');
-const subscribeBtn     = document.getElementById('subscribe-btn');
+const activateBtn      = document.getElementById('activate-btn');
+const joinGroupBtn     = document.getElementById('join-group-btn');
 const notifyBtn        = document.getElementById('notify-btn');
 const subscribeGroupEl = document.getElementById('subscribe-group');
 const senderNameEl     = document.getElementById('sender-name');
@@ -81,20 +82,28 @@ async function init() {
         await navigator.serviceWorker.register('/sw.js');
         swRegistration = await navigator.serviceWorker.ready;
         subscribeGroupEl.disabled = false;
-        subscribeBtn.disabled = false;
         senderNameEl.disabled = false;
 
-        // Restaurar grupo guardado si la suscripción sigue activa
+        // Restaurar estado si la suscripción sigue activa
         let existingSub = null;
         try { existingSub = await swRegistration.pushManager.getSubscription(); } catch (_) {}
         const savedGroup = localStorage.getItem('currentGroup');
-        if (existingSub && savedGroup) {
-            currentGroup = savedGroup;
-            const label = { rojo: '🔴 Rojo', azul: '🔵 Azul', verde: '🟢 Verde' }[savedGroup] ?? savedGroup;
-            statusEl.textContent = `✓ Suscripto al grupo ${label}.`;
-            notifyBtn.disabled = false;
+
+        if (existingSub) {
+            // Notificaciones ya activas: ocultar botón de activar
+            document.getElementById('activate-section').style.display = 'none';
+            joinGroupBtn.disabled = false;
+            if (savedGroup) {
+                currentGroup = savedGroup;
+                const label = { rojo: '🔴 Rojo', azul: '🔵 Azul', verde: '🟢 Verde' }[savedGroup] ?? savedGroup;
+                statusEl.textContent = `✓ Suscripto al grupo ${label}.`;
+                notifyBtn.disabled = false;
+            } else {
+                statusEl.textContent = 'Elegí tu grupo para continuar.';
+            }
         } else {
-            statusEl.textContent = 'Elegí tu grupo y activá las notificaciones.';
+            activateBtn.disabled = false;
+            statusEl.textContent = 'Primero activá las notificaciones.';
         }
     } catch (err) {
         statusEl.textContent = 'Error al registrar el Service Worker.';
@@ -109,7 +118,7 @@ async function getVapidPublicKey() {
     return data.publicKey;
 }
 
-async function setupPush(groupName) {
+async function activatePush() {
     const permission = await Notification.requestPermission();
 
     if (permission === 'denied') {
@@ -126,36 +135,51 @@ async function setupPush(groupName) {
         const reg = await navigator.serviceWorker.ready;
 
         let subscription = null;
-        try {
-            subscription = await reg.pushManager.getSubscription();
-        } catch (_) {}
-
-        // Desuscribir siempre antes de crear una nueva (evita estado inconsistente)
+        try { subscription = await reg.pushManager.getSubscription(); } catch (_) {}
         if (subscription) {
             try { await subscription.unsubscribe(); } catch (_) {}
         }
 
         const vapidPublicKey = await getVapidPublicKey();
-
         let freshReg = reg;
-        let newSubscription = null;
         try {
-            newSubscription = await freshReg.pushManager.subscribe({
+            await freshReg.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
             });
         } catch (_) {
-            // Estado interno corrupto: desregistrar el SW y volver a registrarlo
             await freshReg.unregister();
             await navigator.serviceWorker.register('/sw.js');
             freshReg = await navigator.serviceWorker.ready;
-            newSubscription = await freshReg.pushManager.subscribe({
+            await freshReg.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
             });
         }
+    } catch (err) {
+        statusEl.textContent = `Error al activar notificaciones: ${err.message}`;
+        console.error(err);
+        return false;
+    }
 
-        const subData = JSON.parse(JSON.stringify(newSubscription));
+    // Ocultar botón de activar y habilitar selector de grupo
+    document.getElementById('activate-section').style.display = 'none';
+    joinGroupBtn.disabled = false;
+    statusEl.textContent = '✓ Notificaciones activadas. Ahora elegí un grupo.';
+    return true;
+}
+
+async function joinGroup(groupName) {
+    try {
+        const reg = await navigator.serviceWorker.ready;
+        const subscription = await reg.pushManager.getSubscription();
+
+        if (!subscription) {
+            statusEl.textContent = 'Primero activá las notificaciones.';
+            return false;
+        }
+
+        const subData = JSON.parse(JSON.stringify(subscription));
         const res = await fetch(`${API_URL}/subscribe`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -163,11 +187,11 @@ async function setupPush(groupName) {
         });
 
         if (!res.ok) {
-            statusEl.textContent = 'Error al registrar la suscripción en el servidor.';
+            statusEl.textContent = 'Error al unirse al grupo.';
             return false;
         }
     } catch (err) {
-        statusEl.textContent = `Error al suscribirse: ${err.message}`;
+        statusEl.textContent = `Error al unirse al grupo: ${err.message}`;
         console.error(err);
         return false;
     }
@@ -175,20 +199,31 @@ async function setupPush(groupName) {
     currentGroup = groupName;
     localStorage.setItem('currentGroup', groupName);
     const label = { rojo: '🔴 Rojo', azul: '🔵 Azul', verde: '🟢 Verde' }[groupName] ?? groupName;
-    statusEl.textContent = `✓ Suscripto al grupo ${label}.`;
+    statusEl.textContent = `✓ Unido al grupo ${label}.`;
     notifyBtn.disabled = false;
     return true;
 }
 
-subscribeBtn.addEventListener('click', async () => {
-    const groupName = subscribeGroupEl.value;
-    subscribeBtn.disabled = true;
-    subscribeBtn.textContent = 'Activando...';
+activateBtn.addEventListener('click', async () => {
+    activateBtn.disabled = true;
+    activateBtn.textContent = 'Activando...';
     statusEl.textContent = '';
-    const ok = await setupPush(groupName);
-    subscribeBtn.disabled = false;
-    subscribeBtn.textContent = 'Activar notificaciones';
-    if (!ok && !statusEl.textContent) statusEl.textContent = 'No se pudo suscribir.';
+    const ok = await activatePush();
+    if (!ok) {
+        activateBtn.disabled = false;
+        activateBtn.textContent = 'Activar notificaciones';
+    }
+});
+
+joinGroupBtn.addEventListener('click', async () => {
+    const groupName = subscribeGroupEl.value;
+    joinGroupBtn.disabled = true;
+    joinGroupBtn.textContent = 'Uniéndome...';
+    statusEl.textContent = '';
+    const ok = await joinGroup(groupName);
+    joinGroupBtn.disabled = false;
+    joinGroupBtn.textContent = 'Unirme al grupo';
+    if (!ok && !statusEl.textContent) statusEl.textContent = 'No se pudo unir al grupo.';
 });
 
 notifyBtn.addEventListener('click', async () => {

@@ -37,7 +37,9 @@ h1 {
 }
 
 #subscribe-btn,
-#notify-btn {
+#notify-btn,
+#activate-btn,
+#join-group-btn {
     border: none;
     border-radius: 8px;
     padding: 14px 32px;
@@ -46,6 +48,44 @@ h1 {
     transition: background 0.2s, transform 0.1s;
     width: 100%;
     color: white;
+}
+
+#activate-btn {
+    background: #38a169;
+    margin-bottom: 12px;
+}
+
+#activate-btn:hover:not(:disabled) {
+    background: #2f855a;
+    transform: translateY(-1px);
+}
+
+#activate-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+#activate-btn:disabled {
+    background: #a0aec0;
+    cursor: not-allowed;
+}
+
+#join-group-btn {
+    background: #805ad5;
+    margin-bottom: 0;
+}
+
+#join-group-btn:hover:not(:disabled) {
+    background: #6b46c1;
+    transform: translateY(-1px);
+}
+
+#join-group-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+#join-group-btn:disabled {
+    background: #a0aec0;
+    cursor: not-allowed;
 }
 
 #subscribe-btn {
